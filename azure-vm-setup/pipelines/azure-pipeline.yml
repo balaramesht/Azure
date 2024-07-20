@@ -1,0 +1,28 @@
+trigger:
+  branches:
+    include:
+      - main
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  azureSubscription: '<YOUR_AZURE_SUBSCRIPTION>'
+  resourceGroupName: 'myResourceGroup'
+  location: 'eastus'
+
+stages:
+- stage: Deploy
+  jobs:
+  - job: DeployVM
+    steps:
+    - checkout: self
+
+    - task: AzureCLI@2
+      inputs:
+        azureSubscription: $(azureSubscription)
+        scriptType: 'bash'
+        scriptLocation: 'inlineScript'
+        inlineScript: |
+          az group create --name $(resourceGroupName) --location $(location)
+          az deployment group create --resource-group $(resourceGroupName) --template-file bicep/main.bicep --parameters adminPassword='P@ssw0rd!'
