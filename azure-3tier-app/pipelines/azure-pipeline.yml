@@ -1,0 +1,58 @@
+trigger:
+  branches:
+    include:
+      - main
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  azureSubscription: '<YOUR_AZURE_SUBSCRIPTION>'
+  resourceGroupName: 'myResourceGroup'
+  location: 'eastus'
+  adminPassword: '<YOUR_VM_PASSWORD>'
+
+stages:
+- stage: DeployInfrastructure
+  jobs:
+  - job: DeployInfrastructure
+    steps:
+    - checkout: self
+
+    - task: AzureCLI@2
+      inputs:
+        azureSubscription: $(azureSubscription)
+        scriptType: 'bash'
+        scriptLocation: 'inlineScript'
+        inlineScript: |
+          az group create --name $(resourceGroupName) --location $(location)
+          az deployment group create --resource-group $(resourceGroupName) --template-file bicep/main.bicep --parameters adminPassword=$(adminPassword)
+
+- stage: DeployCode
+  dependsOn: DeployInfrastructure
+  jobs:
+  - job: DeployWebApp
+    steps:
+    - checkout: self
+
+    - task: AzureCLI@2
+      inputs:
+        azureSubscription: $(azureSubscription)
+        scriptType: 'bash'
+        scriptLocation: 'inlineScript'
+        inlineScript: |
+          # Deploy web app code
+          az webapp deployment source config --name myWebApp --resource-group $(resourceGroupName) --repo-url <YOUR_REPO_URL> --branch main --manual-integration
+
+  - job: DeployAppService
+    steps:
+    - checkout: self
+
+    - task: AzureCLI@2
+      inputs:
+        azureSubscription: $(azureSubscription)
+        scriptType: 'bash'
+        scriptLocation: 'inlineScript'
+        inlineScript: |
+          # Deploy app service code
+          az webapp deployment source config --name myAppService --resource-group $(resourceGroupName) --repo-url <YOUR_REPO_URL> --branch main --manual-integration
